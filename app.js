@@ -6,7 +6,7 @@ const postModel = require('./models/postData');
 const userModel=require('./models/userData');
 const jwt=require('jsonwebtoken');
 
-app.use(cors({ origin: "capncut-new-update.vercel.app", credentials: true }));
+app.use(cors({ origin: "https://capncut-new-update.vercel.app/", credentials: true }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const mongoose=require('mongoose');
