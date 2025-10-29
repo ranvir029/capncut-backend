@@ -5,14 +5,28 @@ const bcrypt=require('bcrypt')
 const postModel = require('./models/postData');
 const userModel=require('./models/userData');
 const jwt=require('jsonwebtoken');
+const passport = require("./config/passport");
+const session = require("express-session");
 
-app.use(cors({ origin: "https://capncut-update-z8ba.vercel.app", credentials: true }));
+app.use(cors({
+  origin: "https://www.capncut.io", // Production frontend
+  credentials: true
+}));
+
+
+app.use(session({
+  secret: "some_secret_key",
+  resave: false,
+  saveUninitialized: true,
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const mongoose=require('mongoose');
 const postData = require('./models/postData'); 
 mongoose.connect("mongodb+srv://uk845816_db_user:Tqebj4wXPwQZe0cf@capncutcluster.zv3mcxb.mongodb.net/?retryWrites=true&w=majority&appName=CapnCutCluster");
-
 
 // handle replies
 app.post("/reply/:postId", verifyToken, async (req, res) => {
@@ -37,6 +51,28 @@ app.post("/reply/:postId", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Failed to add reply" });
   }
 });
+
+// google auth
+// Start Google OAuth
+app.get("/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+// Callback after login
+app.get("/auth/google/callback",
+  passport.authenticate("google",{ failureRedirect: "/" }),
+  (req, res) => {
+    // Generate JWT
+    const token = jwt.sign(
+      { id: req.user._id, email: req.user.email },
+      "secret",
+      { expiresIn: "1h" }
+    );
+    // Redirect to React frontend with token
+  res.redirect(`https://www.capncut.io?token=${token}`);
+  }
+);
+
 
 // signup routes
 app.post("/signUpData", async (req,res)=>{
@@ -114,7 +150,7 @@ function verifyToken(req,res,next){
             }
           req.user={ id: decoded.id, email: decoded.email };
           next();
-      })
+    })
 }
 
 app.get('/formData', async (req, res) => {
@@ -148,6 +184,40 @@ app.post("/formData",verifyToken,async (req, res) => {
      }
 })
 
+// // GET /profile/:username
+// app.get("/profile/:username", async (req, res) => {
+//   const user = await userModel.findOne({ userName: req.params.username }).select("-password");
+// const socialLinks = Array.isArray(user.socialLinks) 
+//     ? user.socialLinks 
+//     : (user.socialLinks ? user.socialLinks.split(',') : []);
+// const posts = await postModel.find({ user: user._id }).populate("user", "userName email");
+// res.json({ user: { ...user.toObject(), socialLinks }, posts });
+
+// });
+
+// updateMyprofile section
+app.put("/updateProfile", verifyToken, async (req, res) => {
+  try {
+    const { userName, socialLinks } = req.body;
+
+    const updated = await userModel.findByIdAndUpdate(
+      req.user.id,
+      {
+        ...(userName && { userName }),
+        ...(socialLinks && { socialLinks }),
+      },
+      { new: true }
+    );
+
+    res.json({ message: "Profile updated successfully", user: updated });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+
+
 // handel the mypost part
 app.get("/myPosts", verifyToken, async (req, res) => {
   try {
@@ -155,6 +225,36 @@ app.get("/myPosts", verifyToken, async (req, res) => {
     res.json(myPosts);
   } catch (e) {
     res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+// /myprofileData
+app.get("/myprofileData", verifyToken, async (req, res) => {
+  try {
+    const userProfileData = await userModel.findById(req.user.id).select("-password");
+    const socialLinks = Array.isArray(userProfileData.socialLinks)
+      ? userProfileData.socialLinks
+      : (userProfileData.socialLinks ? userProfileData.socialLinks.split(",") : []);
+    res.json({ ...userProfileData.toObject(), socialLinks });
+  } catch (e) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// /profile/:username
+app.get("/profile/:username", async (req, res) => {
+  try {
+    const user = await userModel.findOne({ userName: req.params.username }).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const socialLinks = Array.isArray(user.socialLinks)
+      ? user.socialLinks
+      : (user.socialLinks ? user.socialLinks.split(",") : []);
+
+    const posts = await postModel.find({ user: user._id }).populate("user", "userName email");
+
+    res.json({ user: { ...user.toObject(), socialLinks }, posts });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
