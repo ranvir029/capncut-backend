@@ -8,17 +8,25 @@ const jwt=require('jsonwebtoken');
 const passport = require("./config/passport");
 const session = require("express-session");
 
+
 app.use(cors({
-  origin: "https://www.capncut.io", // Production frontend
+  origin: ["https://www.capncut.io", "http://localhost:5173"],
   credentials: true
 }));
+
+
+// app.use(cors({
+//   origin: "https://www.capncut.io", // Production frontend
+//   credentials: true
+// }));
 
 
 app.use(session({
   secret: "some_secret_key",
   resave: false,
   saveUninitialized: true,
-}));
+}
+));
 
 app.use(passport.initialize());
 app.use(passport.session());
