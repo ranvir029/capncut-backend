@@ -7,8 +7,7 @@ const userModel=require('./models/userData');
 const jwt=require('jsonwebtoken');
 const passport = require("./config/passport");
 const session = require("express-session");
-
-
+const freelancingModel=require("./models/freelancerUserData");
 app.use(cors({
   origin: ["https://www.capncut.io", "http://localhost:5173"],
   credentials: true
@@ -296,4 +295,40 @@ app.get("/profile/:username", async (req, res) => {
            })
       }
  })
+ // freelancing Data
+app.post("/freelancer",verifyToken,async (req,res)=>{
+     const{name,email,Bio,Profession,Skills,Experience,Location,Baseprice,Portfolio}=req.body;
+    try{
+       const freelancerData= new freelancingModel({
+         name,email,Bio,Profession,Skills,Experience,Location,Baseprice,Portfolio
+       })
+      await freelancerData.save();
+      res.status(201).json({
+          message:"Portfolio Added !",
+          data:freelancerData
+      })
+    }
+     catch(e){
+       console.log(e);
+           res.status(500).json({
+                message:"Internal Server Error"
+           })
+     }
+})
+
+app.get("/freelancer",async(req,res)=>{
+         try{
+               const findPortfolioData=await freelancingModel.find();
+               res.status(200).json({
+                   PortfolioData:findPortfolioData
+               })
+         }
+         catch (e){
+            console.log(e);
+            res.status(500).json({
+              message:"Internal Server Error"
+            })
+         }
+})
+
 app.listen(3000);
